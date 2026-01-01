@@ -2,6 +2,10 @@ import streamlit as st
 import csv
 
 st.title("TableFinder 3.0")
+"by Sam Davisson"
+if "name_val" not in st.session_state:
+     st.session_state.name_val = ""
+     print(f"[{st.session_state.name_val}]")
 guests = []
 with open('data.csv', mode='r', newline='', encoding='utf-8') as file:
     reader = csv.DictReader(file)
@@ -18,13 +22,18 @@ def find_by_first_name(first_name):
 
 
 # selectbox = "Search by " + st.selectbox("", ["first name", "last name"], width=200)
-selectbox = st.toggle("Seatch by first name")
+selectbox = st.toggle("Search by first name")
+
 
 if not selectbox:# == "Search by last name":
-    matches = find_by_last_name(st.text_input("Your last name:"))
+    textinput = st.text_input("Your last name:", value=st.session_state.name_val)
+    matches = find_by_last_name(textinput)
+    st.session_state.name_val = textinput
     for guest in matches:
         st.write(f"{guest['first_name']} {guest['last_name']} - {guest['table']}")
 else:
-    matches = find_by_first_name(st.text_input("Your first name:"))
+    textinput = st.text_input("Your first name:", value=st.session_state.name_val)
+    matches = find_by_first_name(textinput)
+    st.session_state.name_val = textinput
     for guest in matches:
         st.write(f"{guest['first_name']} {guest['last_name']} - {guest['table']}")
