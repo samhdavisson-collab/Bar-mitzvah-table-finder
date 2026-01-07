@@ -17,7 +17,7 @@ EVENTS_DIR = "events"
 os.makedirs(EVENTS_DIR, exist_ok=True)
 
 # For local testing; replace with deployed URL when live
-BASE_URL = "http://localhost:8501"
+BASE_URL = "https://table-finder.streamlit.app"
 
 # -----------------------
 # Get event_id and token from URL query parameters
