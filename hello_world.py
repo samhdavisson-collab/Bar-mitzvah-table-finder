@@ -26,7 +26,7 @@ st.markdown(
 # -----------------------
 # CONFIG
 # -----------------------
-BASE_URL = "http://localhost:8501"  # replace with your deployed URL
+BASE_URL = "https://table-finder.streamlit.app"  # replace with your deployed URL
 BUCKET = st.secrets["R2_BUCKET"]
 
 # -----------------------
@@ -110,7 +110,7 @@ if not event_id:
         1. **Create an Event**
            - Go to the 'Create an Event' tab.
            - Enter your event title.
-           - Upload a CSV with your guests. The CSV should include first name, last name, and table columns (any column names are fine; you will map them).
+           - Upload a CSV file with your guests. The CSV file should include first name, last name, and table columns (any column names are fine; you will map them).
            - Click 'Create Event' to generate your event.
            - A QR code and guest/admin links will be generated automatically.
            - Download your Admin File to recover the event later if needed.
@@ -118,7 +118,7 @@ if not event_id:
         2. **Admin Page**
            - Use the admin link or upload your Admin File in the 'Admin Login' tab.
            - Edit guest lists, tables, or event title.
-           - Download the guest CSV or QR code at any time.
+           - Download the guest CSV file or QR code at any time.
            - Delete the event if needed (permanent).
 
         3. **Guest Lookup**
@@ -128,7 +128,7 @@ if not event_id:
 
         **Tips:**
         - Always keep your Admin File safe.
-        - Column mapping is remembered if you upload a new CSV later.
+        - Column mapping is remembered if you upload a new CSV file later.
         - Tables can be numbers or names (like "A", "B", "Family Table").
         """)
     with adminpage:
