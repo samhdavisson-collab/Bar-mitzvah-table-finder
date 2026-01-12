@@ -358,7 +358,7 @@ if is_admin:
     st.download_button(
         label="Download Admin Recover File",
         data=safe_bytes,
-        file_name=f"event_{event_id}_admin.json",
+        file_name=f"{meta.get("title")}_admin.json",
         mime="application/json"
     )
 
