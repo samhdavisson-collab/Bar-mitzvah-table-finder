@@ -3,7 +3,6 @@ import pandas as pd
 import boto3
 import uuid
 import json
-import time
 import secrets
 import csv
 import io
@@ -43,6 +42,18 @@ s3 = boto3.client(
 # -----------------------
 # HELPERS
 # -----------------------
+def make_wifi_qr(ssid, password, security="WPA"):
+    if not password:
+        security = "nopass"
+
+    wifi_str = f"WIFI:T:{security};S:{ssid};P:{password};;"
+    qr = qrcode.make(wifi_str)
+
+    buf = io.BytesIO()
+    qr.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
+
 def r2_key(event_id, name):
     return f"events/{event_id}/{name}"
 
@@ -105,21 +116,22 @@ if not event_id:
         st.markdown("""
         **Welcome to TableFinder!**  
 
-        Here's how to use the app:
+        Here's how to use this site:
 
         1. **Create an Event**
            - Go to the 'Create an Event' tab.
            - Enter your event title.
            - Upload a CSV file with your guests. The CSV file should include first name, last name, and table columns (any column names are fine; you will map them).
+           - You can also click "Create a blank list" to create without uploading a CSV file.
            - Click 'Create Event' to generate your event.
            - A QR code and guest/admin links will be generated automatically.
-           - Download your Admin File to recover the event later if needed.
+           - **Download your Admin File to recover the event later if you close the page**.
 
         2. **Admin Page**
            - Use the admin link or upload your Admin File in the 'Admin Login' tab.
            - Edit guest lists, tables, or event title.
            - Download the guest CSV file or QR code at any time.
-           - Delete the event if needed (permanent).
+           - Delete the event when you are done (permanent).
 
         3. **Guest Lookup**
            - Guests can use the QR code or guest link.
@@ -128,8 +140,8 @@ if not event_id:
 
         **Tips:**
         - Always keep your Admin File safe.
-        - Column mapping is remembered if you upload a new CSV file later.
-        - Tables can be numbers or names (like "A", "B", "Family Table").
+        - Column mapping is not remembered if you upload a new CSV file later.
+        - Tables can be numbers or names (like "A", "B", "Family Table", "1").
         """)
     with adminpage:
         uploaded_safe = st.file_uploader("Upload admin recover file", type="json")
@@ -239,6 +251,29 @@ if not event_id:
                 if "table" in df.columns:
                     df["table"] = df["table"].astype(str)
                 df = df.reset_index(drop=True)
+            from datetime import date
+
+            # delete_after = meta.get("delete_after")  # stored as YYYY-MM-DD string
+            # delete_after_date = (
+            #     date.fromisoformat(delete_after)
+            #     if delete_after
+            #     else None
+            # )
+
+            picked_date = st.date_input(
+                "Automatically delete this event after:",
+                value=date.today(),
+                min_value=date.today()
+            )
+
+            if picked_date:# != delete_after_date:
+                delete_after = picked_date.isoformat()
+                # s3.put_object(
+                #     Bucket=BUCKET,
+                #     Key=meta_key,
+                #     Body=json.dumps(meta),
+                # )
+                st.toast(f"Event will be deleted after {picked_date}")
 
             if st.button("Create Event"):
                 event_id = uuid.uuid4().hex[:6]
@@ -262,7 +297,8 @@ if not event_id:
                             "last_name": last_col,
                             "table": table_col
                         },
-                        "table_prefix": "Table"
+                        "table_prefix": "Table",
+                        "delete_after": delete_after
                     }
                 else:
                     meta = {
@@ -274,7 +310,8 @@ if not event_id:
                                     "last_name": "last_name",
                                     "table": "table"
                                 },
-                                "table_prefix": "Table"
+                                "table_prefix": "Table",
+                                "delete_after": delete_after
                             }
                 s3.put_object(
                     Bucket=BUCKET,
@@ -343,6 +380,22 @@ st.caption(f"Event ID: {event_id}")
 # ADMIN PAGE
 # ============================================================
 if is_admin:
+    # st.sidebar.title("Admin")
+    #
+    # if "admin_page" not in st.session_state:
+    #     st.session_state.admin_page = "share"
+    #
+    # if st.sidebar.button("Share event"):
+    #     st.session_state.admin_page = "share"
+    #
+    # if st.sidebar.button("Edit event"):
+    #     st.session_state.admin_page = "edit"
+    #
+    # if st.sidebar.button("Wi-Fi QR"):
+    #     st.session_state.admin_page = "wifi"
+    #
+    # if st.sidebar.button("Delete event"):
+    #     st.session_state.admin_page = "delete"
     st.warning("Creator/Admin Page")
 
     # Download admin safe file
@@ -358,10 +411,9 @@ if is_admin:
     st.download_button(
         label="Download Admin Recover File",
         data=safe_bytes,
-        file_name=f"{meta.get("title")}_admin.json",
+        file_name=f"{meta.get('title')}_admin.json",
         mime="application/json"
     )
-
 
     share = st.expander("Share event")
     with share:
@@ -383,6 +435,29 @@ if is_admin:
 
     event_data = st.expander("Edit event")
     with event_data:
+        from datetime import date
+
+        delete_after = meta.get("delete_after")  # stored as YYYY-MM-DD string
+        delete_after_date = (
+            date.fromisoformat(delete_after)
+            if delete_after
+            else None
+        )
+
+        picked_date = st.date_input(
+            "Automatically delete this event after:",
+            value=delete_after_date,
+            min_value=date.today()
+        )
+
+        if picked_date != delete_after_date:
+            meta["delete_after"] = picked_date.isoformat()
+            s3.put_object(
+                Bucket=BUCKET,
+                Key=meta_key,
+                Body=json.dumps(meta),
+            )
+            st.toast(f"Event will be deleted after {picked_date}")
         # Edit event title
         new_title = st.text_input("Edit event title:", value=meta["title"])
         if new_title != meta["title"]:
@@ -392,7 +467,7 @@ if is_admin:
                 Key=meta_key,
                 Body=json.dumps(meta),
             )
-            st.success("Event title updated!")
+            st.toast("Event title updated!")
             st.rerun()
 
         # Load CSV
@@ -441,11 +516,10 @@ if is_admin:
             )
 
             st.session_state.df = edited_internal
-            time.sleep(0.5)
+            time.sleep(1)
             saving.toast("Saved!", icon="✅", duration=2)
         if "uploadedval" not in st.session_state:
             st.session_state.uploadedval = 0
-            print("hello")
         # Replace CSV while remembering column mapping
         uploaded_replace = st.file_uploader("Or upload a new CSV to replace guest list", type="csv", key=str(st.session_state.uploadedval))
         if uploaded_replace:
@@ -506,6 +580,33 @@ if is_admin:
             )
             st.success("Table prefix updated!")
             st.rerun()
+    wifi_qr = st.expander("WiFi QR Code")
+    with wifi_qr:
+        # st.subheader("", help=
+        # "Your Wi-Fi name and password are used only to generate the QR code. "
+        # "They are never saved, logged, or stored."
+        #              )
+        st.caption("Your Wi-Fi information is used locally to generate the QR code."
+        "It is never saved, logged, or stored.")
+        ssid = st.text_input("Wi-Fi Network Name (SSID)")
+        password = st.text_input("Wi-Fi Password", type="password")
+        security = st.selectbox(
+            "Security type",
+            ["WPA", "WEP", "Open (no password)"]
+        )
+
+        if security == "Open (no password)":
+            security = "nopass"
+
+        if ssid:
+            wifi_qr = make_wifi_qr(ssid, password, security)
+            st.image(wifi_qr, width=250)
+            st.download_button(
+                "Download Wi-Fi QR code",
+                data=wifi_qr.getvalue(),
+                file_name="wifi_qr.png",
+                mime="image/png"
+            )
 
     # Delete event
     st.divider()

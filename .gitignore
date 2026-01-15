@@ -5,10 +5,14 @@ venv/
 .venv/
 
 data.csv
-r2_test.py
-help.py
+pages/1_Share_Event.py
+menu.py
 secrets
 random_name_generator.py
+pages/
+app.py
+.env
+test.py
 
 # Streamlit secrets
 .streamlit/secrets.toml

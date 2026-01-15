@@ -1,2 +1,4 @@
 #[theme]
 #primaryColor="#00bbff" # Red primary color
+[client]
+showSidebarNavigation = false
